@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from cachetools import TTLCache
 
@@ -11,8 +11,8 @@ class PeriodicCache(TTLCache):
 
     def __init__(self, maxsize, ttl, getsizeof=None):
         def local_timer():
-            ts = datetime.now(timezone.utc).timestamp()
-            offset = (ts % ttl)
+            ts = datetime.now(UTC).timestamp()
+            offset = ts % ttl
             return ts - offset
 
         # Init with smlight offset

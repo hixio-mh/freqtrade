@@ -6,7 +6,7 @@ To update your freqtrade installation, please use one of the below methods, corr
     Breaking changes / changed behavior will be documented in the changelog that is posted alongside every release.
     For the develop branch, please follow PR's to avoid being surprised by changes.
 
-## docker
+## Docker
 
 !!! Note "Legacy installations using the `master` image"
     We're switching from master to stable for the release Images - please adjust your docker-file and replace `freqtradeorg/freqtrade:master` with `freqtradeorg/freqtrade:stable`
@@ -42,7 +42,3 @@ freqtrade install-ui
 
 Update-problems usually come missing dependencies (you didn't follow the above instructions) - or from updated dependencies, which fail to install (for example TA-lib).
 Please refer to the corresponding installation sections (common problems linked below)
-
-Common problems and their solutions:
-
-* [ta-lib update on windows](windows_installation.md#2-install-ta-lib)

@@ -33,7 +33,6 @@ For spot pairs, naming will be `base/quote` (e.g. `ETH/USDT`).
 
 For futures pairs, naming will be `base/quote:settle` (e.g. `ETH/USDT:USDT`).
 
-
 ## Bot execution logic
 
 Starting freqtrade in dry-run or live mode (using `freqtrade trade`) will start the bot and start the bot iteration loop.
@@ -50,14 +49,18 @@ By default, the bot loop runs every few seconds (`internals.process_throttle_sec
   * Call `populate_indicators()`
   * Call `populate_entry_trend()`
   * Call `populate_exit_trend()`
-* Check timeouts for open orders.
-  * Calls `check_entry_timeout()` strategy callback for open entry orders.
-  * Calls `check_exit_timeout()` strategy callback for open exit orders.
-  * Calls `adjust_entry_price()` strategy callback for open entry orders.
+* Update trades open order state from exchange.
+  * Call `order_filled()` strategy callback for filled orders.
+  * Check timeouts for open orders.
+    * Calls `check_entry_timeout()` strategy callback for open entry orders.
+    * Calls `check_exit_timeout()` strategy callback for open exit orders.
+    * Calls `adjust_order_price()` strategy callback for open orders.
+      * Calls `adjust_entry_price()` strategy callback for open entry orders. *only called when `adjust_order_price()` is not implemented*
+      * Calls `adjust_exit_price()` strategy callback for open exit orders. *only called when `adjust_order_price()` is not implemented*
 * Verifies existing positions and eventually places exit orders.
   * Considers stoploss, ROI and exit-signal, `custom_exit()` and `custom_stoploss()`.
   * Determine exit-price based on `exit_pricing` configuration setting or by using the `custom_exit_price()` callback.
-  * Before a exit order is placed, `confirm_trade_exit()` strategy callback is called.
+  * Before an exit order is placed, `confirm_trade_exit()` strategy callback is called.
 * Check position adjustments for open trades if enabled by calling `adjust_trade_position()` and place additional order if required.
 * Check if trade-slots are still available (if `max_open_trades` is reached).
 * Verifies entry signal trying to enter new positions.
@@ -79,15 +82,19 @@ This loop will be repeated again and again until the bot is stopped.
 * Loops per candle simulating entry and exit points.
   * Calls `bot_loop_start()` strategy callback.
   * Check for Order timeouts, either via the `unfilledtimeout` configuration, or via `check_entry_timeout()` / `check_exit_timeout()` strategy callbacks.
-  * Calls `adjust_entry_price()` strategy callback for open entry orders.
+  * Calls `adjust_order_price()` strategy callback for open orders.
+    * Calls `adjust_entry_price()` strategy callback for open entry orders. *only called when `adjust_order_price()` is not implemented!*
+    * Calls `adjust_exit_price()` strategy callback for open exit orders. *only called when `adjust_order_price()` is not implemented!*
   * Check for trade entry signals (`enter_long` / `enter_short` columns).
   * Confirm trade entry / exits (calls `confirm_trade_entry()` and `confirm_trade_exit()` if implemented in the strategy).
   * Call `custom_entry_price()` (if implemented in the strategy) to determine entry price (Prices are moved to be within the opening candle).
   * In Margin and Futures mode, `leverage()` strategy callback is called to determine the desired leverage.
   * Determine stake size by calling the `custom_stake_amount()` callback.
   * Check position adjustments for open trades if enabled and call `adjust_trade_position()` to determine if an additional order is requested.
+  * Call `order_filled()` strategy callback for filled entry orders.
   * Call `custom_stoploss()` and `custom_exit()` to find custom exit points.
   * For exits based on exit-signal, custom-exit and partial exits: Call `custom_exit_price()` to determine exit price (Prices are moved to be within the closing candle).
+  * Call `order_filled()` strategy callback for filled exit orders.
 * Generate backtest report output
 
 !!! Note
