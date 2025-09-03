@@ -1,24 +1,19 @@
 """
 Full trade slots pair list filter
 """
-import logging
-from typing import Any, Dict, List
 
-from freqtrade.constants import Config
-from freqtrade.exchange.types import Tickers
+import logging
+
+from freqtrade.exchange.exchange_types import Tickers
 from freqtrade.persistence import Trade
-from freqtrade.plugins.pairlist.IPairList import IPairList
+from freqtrade.plugins.pairlist.IPairList import IPairList, SupportsBacktesting
 
 
 logger = logging.getLogger(__name__)
 
 
 class FullTradesFilter(IPairList):
-
-    def __init__(self, exchange, pairlistmanager,
-                 config: Config, pairlistconfig: Dict[str, Any],
-                 pairlist_pos: int) -> None:
-        super().__init__(exchange, pairlistmanager, config, pairlistconfig, pairlist_pos)
+    supports_backtesting = SupportsBacktesting.NO_ACTION
 
     @property
     def needstickers(self) -> bool:
@@ -39,7 +34,7 @@ class FullTradesFilter(IPairList):
     def description() -> str:
         return "Shrink whitelist when trade slots are full."
 
-    def filter_pairlist(self, pairlist: List[str], tickers: Tickers) -> List[str]:
+    def filter_pairlist(self, pairlist: list[str], tickers: Tickers) -> list[str]:
         """
         Filters and sorts pairlist and returns the allowlist again.
         Called on each bot iteration - please use internal caching if necessary
@@ -49,7 +44,7 @@ class FullTradesFilter(IPairList):
         """
         # Get the number of open trades and max open trades config
         num_open = Trade.get_open_trade_count()
-        max_trades = self._config['max_open_trades']
+        max_trades = self._config["max_open_trades"]
 
         if (num_open >= max_trades) and (max_trades > 0):
             return []

@@ -8,41 +8,50 @@ from freqtrade.constants import Config
 
 class StrategyUpdater:
     name_mapping = {
-        'ticker_interval': 'timeframe',
-        'buy': 'enter_long',
-        'sell': 'exit_long',
-        'buy_tag': 'enter_tag',
-        'sell_reason': 'exit_reason',
-
-        'sell_signal': 'exit_signal',
-        'custom_sell': 'custom_exit',
-        'force_sell': 'force_exit',
-        'emergency_sell': 'emergency_exit',
-
+        "ticker_interval": "timeframe",
+        "buy": "enter_long",
+        "sell": "exit_long",
+        "buy_tag": "enter_tag",
+        "sell_reason": "exit_reason",
+        "sell_signal": "exit_signal",
+        "custom_sell": "custom_exit",
+        "force_sell": "force_exit",
+        "emergency_sell": "emergency_exit",
         # Strategy/config settings:
-        'use_sell_signal': 'use_exit_signal',
-        'sell_profit_only': 'exit_profit_only',
-        'sell_profit_offset': 'exit_profit_offset',
-        'ignore_roi_if_buy_signal': 'ignore_roi_if_entry_signal',
-        'forcebuy_enable': 'force_entry_enable',
+        "use_sell_signal": "use_exit_signal",
+        "sell_profit_only": "exit_profit_only",
+        "sell_profit_offset": "exit_profit_offset",
+        "ignore_roi_if_buy_signal": "ignore_roi_if_entry_signal",
+        "forcebuy_enable": "force_entry_enable",
     }
 
     function_mapping = {
-        'populate_buy_trend': 'populate_entry_trend',
-        'populate_sell_trend': 'populate_exit_trend',
-        'custom_sell': 'custom_exit',
-        'check_buy_timeout': 'check_entry_timeout',
-        'check_sell_timeout': 'check_exit_timeout',
+        "populate_buy_trend": "populate_entry_trend",
+        "populate_sell_trend": "populate_exit_trend",
+        "custom_sell": "custom_exit",
+        "check_buy_timeout": "check_entry_timeout",
+        "check_sell_timeout": "check_exit_timeout",
         # '': '',
     }
     # order_time_in_force, order_types, unfilledtimeout
     otif_ot_unfilledtimeout = {
-        'buy': 'entry',
-        'sell': 'exit',
+        "buy": "entry",
+        "sell": "exit",
+    }
+
+    # Update function names.
+    # example: `np.NaN` was removed in the NumPy 2.0 release. Use `np.nan` instead.
+    module_replacements = {
+        "numpy": {
+            "aliases": set(),
+            "replacements": [
+                ("NaN", "nan"),
+            ],
+        }
     }
 
     # create a dictionary that maps the old column names to the new ones
-    rename_dict = {'buy': 'enter_long', 'sell': 'exit_long', 'buy_tag': 'enter_tag'}
+    rename_dict = {"buy": "enter_long", "sell": "exit_long", "buy_tag": "enter_tag"}
 
     def start(self, config: Config, strategy_obj: dict) -> None:
         """
@@ -51,12 +60,12 @@ class StrategyUpdater:
         :return: None
         """
 
-        source_file = strategy_obj['location']
-        strategies_backup_folder = Path.joinpath(config['user_data_dir'], "strategies_orig_updater")
-        target_file = Path.joinpath(strategies_backup_folder, strategy_obj['location_rel'])
+        source_file = strategy_obj["location"]
+        strategies_backup_folder = Path.joinpath(config["user_data_dir"], "strategies_orig_updater")
+        target_file = Path.joinpath(strategies_backup_folder, strategy_obj["location_rel"])
 
         # read the file
-        with Path(source_file).open('r') as f:
+        with Path(source_file).open("r") as f:
             old_code = f.read()
         if not strategies_backup_folder.is_dir():
             Path(strategies_backup_folder).mkdir(parents=True, exist_ok=True)
@@ -70,7 +79,7 @@ class StrategyUpdater:
         # update the code
         new_code = self.update_code(old_code)
         # write the modified code to the destination folder
-        with Path(source_file).open('w') as f:
+        with Path(source_file).open("w") as f:
             f.write(new_code)
 
     # define the function to update the code
@@ -85,7 +94,7 @@ class StrategyUpdater:
         return updated_code
 
     # function that uses the ast module to update the code
-    def modify_ast(self, tree):  # noqa
+    def modify_ast(self, tree):
         # use the visitor to update the names and functions in the AST
         NameUpdater().visit(tree)
 
@@ -106,7 +115,6 @@ class StrategyUpdater:
 # Here we go through each respective node, slice, elt, key ... to replace outdated entries.
 class NameUpdater(ast_comments.NodeTransformer):
     def generic_visit(self, node):
-
         # space is not yet transferred from buy/sell to entry/exit and thereby has to be skipped.
         if isinstance(node, ast_comments.keyword):
             if node.arg == "space":
@@ -156,16 +164,24 @@ class NameUpdater(ast_comments.NodeTransformer):
     def visit_Name(self, node):
         # if the name is in the mapping, update it
         node.id = self.check_dict(StrategyUpdater.name_mapping, node.id)
+
+        for mod, info in StrategyUpdater.module_replacements.items():
+            for old_attr, new_attr in info["replacements"]:
+                if node.id == old_attr:
+                    node.id = new_attr
         return node
 
     def visit_Import(self, node):
-        # do not update the names in import statements
+        for alias in node.names:
+            if alias.name in StrategyUpdater.module_replacements:
+                as_name = alias.asname or alias.name
+                StrategyUpdater.module_replacements[alias.name]["aliases"].add(as_name)
         return node
 
     def visit_ImportFrom(self, node):
-        # if hasattr(node, "module"):
-        #    if node.module == "freqtrade.strategy.hyper":
-        #        node.module = "freqtrade.strategy"
+        if node.module in StrategyUpdater.module_replacements:
+            mod = node.module
+            StrategyUpdater.module_replacements[node.module]["aliases"].add(mod)
         return node
 
     def visit_If(self, node: ast_comments.If):
@@ -180,37 +196,44 @@ class NameUpdater(ast_comments.NodeTransformer):
 
     def visit_Attribute(self, node):
         if (
-                isinstance(node.value, ast_comments.Name)
-                and node.value.id == 'trade'
-                and node.attr == 'nr_of_successful_buys'
+            isinstance(node.value, ast_comments.Name)
+            and node.value.id == "trade"
+            and node.attr == "nr_of_successful_buys"
         ):
-            node.attr = 'nr_of_successful_entries'
+            node.attr = "nr_of_successful_entries"
+        if isinstance(node.value, ast_comments.Name):
+            for mod, info in StrategyUpdater.module_replacements.items():
+                if node.value.id in info["aliases"]:
+                    for old_attr, new_attr in info["replacements"]:
+                        if node.attr == old_attr:
+                            node.attr = new_attr
         return node
 
     def visit_ClassDef(self, node):
         # check if the class is derived from IStrategy
-        if any(isinstance(base, ast_comments.Name) and
-               base.id == 'IStrategy' for base in node.bases):
+        if any(
+            isinstance(base, ast_comments.Name) and base.id == "IStrategy" for base in node.bases
+        ):
             # check if the INTERFACE_VERSION variable exists
             has_interface_version = any(
-                isinstance(child, ast_comments.Assign) and
-                isinstance(child.targets[0], ast_comments.Name) and
-                child.targets[0].id == 'INTERFACE_VERSION'
+                isinstance(child, ast_comments.Assign)
+                and isinstance(child.targets[0], ast_comments.Name)
+                and child.targets[0].id == "INTERFACE_VERSION"
                 for child in node.body
             )
 
             # if the INTERFACE_VERSION variable does not exist, add it as the first child
             if not has_interface_version:
-                node.body.insert(0, ast_comments.parse('INTERFACE_VERSION = 3').body[0])
+                node.body.insert(0, ast_comments.parse("INTERFACE_VERSION = 3").body[0])
             # otherwise, update its value to 3
             else:
                 for child in node.body:
                     if (
-                            isinstance(child, ast_comments.Assign)
-                            and isinstance(child.targets[0], ast_comments.Name)
-                            and child.targets[0].id == 'INTERFACE_VERSION'
+                        isinstance(child, ast_comments.Assign)
+                        and isinstance(child.targets[0], ast_comments.Name)
+                        and child.targets[0].id == "INTERFACE_VERSION"
                     ):
-                        child.value = ast_comments.parse('3').body[0].value
+                        child.value = ast_comments.parse("3").body[0].value
         self.generic_visit(node)
         return node
 

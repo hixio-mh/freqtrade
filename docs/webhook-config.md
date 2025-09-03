@@ -65,7 +65,7 @@ You can set the POST body format to Form-Encoded (default), JSON-Encoded, or raw
 
 The result would be a POST request with e.g. `{"text":"Status: running"}` body and `Content-Type: application/json` header which results `Status: running` message in the Mattermost channel.
 
-When using the Form-Encoded or JSON-Encoded configuration you can configure any number of payload values, and both the key and value will be ouput in the POST request. However, when using the raw data format you can only configure one value and it **must** be named `"data"`. In this instance the data key will not be output in the POST request, only the value. For example:
+When using the Form-Encoded or JSON-Encoded configuration you can configure any number of payload values, and both the key and value will be output in the POST request. However, when using the raw data format you can only configure one value and it **must** be named `"data"`. In this instance the data key will not be output in the POST request, only the value. For example:
 
 ```json
   "webhook": {
@@ -79,6 +79,29 @@ When using the Form-Encoded or JSON-Encoded configuration you can configure any 
 ```
 
 The result would be a POST request with e.g. `Status: running` body and `Content-Type: text/plain` header.
+
+### Nested Webhook Configuration
+
+Some webhook targets require a nested structure.
+This can be accomplished by setting the content as dictionary or list instead of as text directly.  
+
+This is only supported for the JSON format.
+
+```json
+"webhook": {
+    "enabled": true,
+    "url": "https://<yourhookurl>",
+    "format": "json",
+    "status": {
+        "msgtype": "text",
+        "text": {
+            "content": "Status update: {status}"
+        }
+    }
+}
+```
+
+The result would be a POST request with e.g. `{"msgtype":"text","text":{"content":"Status update: running"}}` body and `Content-Type: application/json` header.
 
 ## Additional configurations
 
@@ -117,9 +140,9 @@ Different payloads can be configured for different events. Not all fields are ne
 
 ## Webhook Message types
 
-### Entry
+### Entry / Entry fill
 
-The fields in `webhook.entry` are filled when the bot executes a long/short. Parameters are filled using string.format.
+The fields in `webhook.entry` and `webhook.entry_fill` are filled when the bot places a long/short Order to increase a position, or when that order fills respectively. Parameters are filled using string.format.
 Possible parameters are:
 
 * `trade_id`
@@ -134,6 +157,7 @@ Possible parameters are:
 * `stake_amount`
 * `stake_currency`
 * `base_currency`
+* `quote_currency`
 * `fiat_currency`
 * `order_type`
 * `current_rate`
@@ -155,35 +179,15 @@ Possible parameters are:
 * `stake_amount`
 * `stake_currency`
 * `base_currency`
+* `quote_currency`
 * `fiat_currency`
 * `order_type`
 * `current_rate`
 * `enter_tag`
 
-### Entry fill
+### Exit / Exit fill
 
-The fields in `webhook.entry_fill` are filled when the bot filled a long/short order. Parameters are filled using string.format.
-Possible parameters are:
-
-* `trade_id`
-* `exchange`
-* `pair`
-* `direction`
-* `leverage`
-* `open_rate`
-* `amount`
-* `open_date`
-* `stake_amount`
-* `stake_currency`
-* `base_currency`
-* `fiat_currency`
-* `order_type`
-* `current_rate`
-* `enter_tag`
-
-### Exit
-
-The fields in `webhook.exit` are filled when the bot exits a trade. Parameters are filled using string.format.
+The fields in `webhook.exit` and `webhook.exit_fill` are filled when the bot places an exit order, or when that exit order fills respectively. Parameters are filled using string.format.
 Possible parameters are:
 
 * `trade_id`
@@ -192,43 +196,24 @@ Possible parameters are:
 * `direction`
 * `leverage`
 * `gain`
-* `limit`
 * `amount`
 * `open_rate`
-* `profit_amount`
-* `profit_ratio`
-* `stake_currency`
-* `base_currency`
-* `fiat_currency`
-* `exit_reason`
-* `order_type`
-* `open_date`
-* `close_date`
-
-### Exit fill
-
-The fields in `webhook.exit_fill` are filled when the bot fills a exit order (closes a Trade). Parameters are filled using string.format.
-Possible parameters are:
-
-* `trade_id`
-* `exchange`
-* `pair`
-* `direction`
-* `leverage`
-* `gain`
 * `close_rate`
-* `amount`
-* `open_rate`
 * `current_rate`
 * `profit_amount`
 * `profit_ratio`
 * `stake_currency`
 * `base_currency`
+* `quote_currency`
 * `fiat_currency`
+* `enter_tag`
 * `exit_reason`
 * `order_type`
 * `open_date`
 * `close_date`
+* `sub_trade`
+* `is_final_exit`
+
 
 ### Exit cancel
 
@@ -241,7 +226,7 @@ Possible parameters are:
 * `direction`
 * `leverage`
 * `gain`
-* `limit`
+* `order_rate`
 * `amount`
 * `open_rate`
 * `current_rate`
@@ -249,6 +234,7 @@ Possible parameters are:
 * `profit_ratio`
 * `stake_currency`
 * `base_currency`
+* `quote_currency`
 * `fiat_currency`
 * `exit_reason`
 * `order_type`
@@ -302,6 +288,7 @@ You can configure this as follows:
 ```
 
 The above represents the default (`exit_fill` and `entry_fill` are optional and will default to the above configuration) - modifications are obviously possible.
+To disable either of the two default values (`entry_fill` / `exit_fill`), you can assign them an empty array (`exit_fill: []`).
 
 Available fields correspond to the fields for webhooks and are documented in the corresponding webhook sections.
 

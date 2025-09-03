@@ -7,7 +7,7 @@ Low level feature engineering is performed in the user strategy within a set of 
 |  Function | Description |
 |---------------|-------------|
 | `feature_engineering_expand_all()` | This optional function will automatically expand the defined features on the config defined `indicator_periods_candles`, `include_timeframes`, `include_shifted_candles`, and `include_corr_pairs`.
-| `feature_engineering_expand_basic()` | This optional function will automatically expand the defined features on the config defined `include_timeframes`, `include_shifted_candles`, and `include_corr_pairs`. Note: this function does *not* expand across `include_periods_candles`.
+| `feature_engineering_expand_basic()` | This optional function will automatically expand the defined features on the config defined `include_timeframes`, `include_shifted_candles`, and `include_corr_pairs`. Note: this function does *not* expand across `indicator_periods_candles`.
 | `feature_engineering_standard()` | This optional function will be called once with the dataframe of the base timeframe. This is the final function to be called, which means that the dataframe entering this function will contain all the features and columns from the base asset created by the other `feature_engineering_expand` functions. This function is a good place to do custom exotic feature extractions (e.g. tsfresh). This function is also a good place for any feature that should not be auto-expanded upon (e.g., day of the week).
 | `set_freqai_targets()` | Required function to set the targets for the model. All targets must be prepended with `&` to be recognized by the FreqAI internals.
 
@@ -181,7 +181,7 @@ You can ask for each of the defined features to be included also for informative
 In total, the number of features the user of the presented example strategy has created is: length of `include_timeframes` * no. features in `feature_engineering_expand_*()` * length of `include_corr_pairlist` * no. `include_shifted_candles` * length of `indicator_periods_candles`
  $= 3 * 3 * 3 * 2 * 2 = 108$.
  
- !!! note "Learn more about creative feature engineering"
+!!! note "Learn more about creative feature engineering"
     Check out our [medium article](https://emergentmethods.medium.com/freqai-from-price-to-prediction-6fadac18b665) geared toward helping users learn how to creatively engineer features.
 
 ### Gain finer control over `feature_engineering_*` functions with `metadata`
@@ -224,7 +224,7 @@ where $W_i$ is the weight of data point $i$ in a total set of $n$ data points. B
 
 ## Building the data pipeline
 
-By default, FreqAI builds a dynamic pipeline based on user congfiguration settings. The default settings are robust and designed to work with a variety of methods. These two steps are a `MinMaxScaler(-1,1)` and a `VarianceThreshold` which removes any column that has 0 variance. Users can activate other steps with more configuration parameters. For example if users add `use_SVM_to_remove_outliers: true` to the `freqai` config, then FreqAI will automatically add the [`SVMOutlierExtractor`](#identifying-outliers-using-a-support-vector-machine-svm) to the pipeline. Likewise, users can add `principal_component_analysis: true` to the `freqai` config to activate PCA. The [DissimilarityIndex](#identifying-outliers-with-the-dissimilarity-index-di) is activated with `DI_threshold: 1`. Finally, noise can also be added to the data with `noise_standard_deviation: 0.1`. Finally, users can add [DBSCAN](#identifying-outliers-with-dbscan) outlier removal with `use_DBSCAN_to_remove_outliers: true`.
+By default, FreqAI builds a dynamic pipeline based on user configuration settings. The default settings are robust and designed to work with a variety of methods. These two steps are a `MinMaxScaler(-1,1)` and a `VarianceThreshold` which removes any column that has 0 variance. Users can activate other steps with more configuration parameters. For example if users add `use_SVM_to_remove_outliers: true` to the `freqai` config, then FreqAI will automatically add the [`SVMOutlierExtractor`](#identifying-outliers-using-a-support-vector-machine-svm) to the pipeline. Likewise, users can add `principal_component_analysis: true` to the `freqai` config to activate PCA. The [DissimilarityIndex](#identifying-outliers-with-the-dissimilarity-index-di) is activated with `DI_threshold: 1`. Finally, noise can also be added to the data with `noise_standard_deviation: 0.1`. Finally, users can add [DBSCAN](#identifying-outliers-with-dbscan) outlier removal with `use_DBSCAN_to_remove_outliers: true`.
 
 !!! note "More information available"
     Please review the [parameter table](freqai-parameter-table.md) for more information on these parameters.
@@ -235,7 +235,7 @@ By default, FreqAI builds a dynamic pipeline based on user congfiguration settin
 Users are encouraged to customize the data pipeline to their needs by building their own data pipeline. This can be done by simply setting `dk.feature_pipeline` to their desired `Pipeline` object inside their `IFreqaiModel` `train()` function, or if they prefer not to touch the `train()` function, they can override `define_data_pipeline`/`define_label_pipeline` functions in their `IFreqaiModel`:
 
 !!! note "More information available"
-    FreqAI uses the the [`DataSieve`](https://github.com/emergentmethods/datasieve) pipeline, which follows the SKlearn pipeline API, but adds, among other features, coherence between the X, y, and sample_weight vector point removals, feature removal, feature name following. 
+    FreqAI uses the [`DataSieve`](https://github.com/emergentmethods/datasieve) pipeline, which follows the SKlearn pipeline API, but adds, among other features, coherence between the X, y, and sample_weight vector point removals, feature removal, feature name following. 
 
 ```python
 from datasieve.transforms import SKLearnWrapper, DissimilarityIndex
@@ -310,7 +310,7 @@ class MyCoolTransform(BaseTransform):
 
 If you have created your own custom `IFreqaiModel` with a custom `train()`/`predict()` function, *and* you still rely on `data_cleaning_train/predict()`, then you will need to migrate to the new pipeline. If your model does *not* rely on `data_cleaning_train/predict()`, then you do not need to worry about this migration.
 
-More details about the migration can be found [here](strategy_migration.md#freqai---new-data-pipeline).
+More details about the migration can be found [here](strategy_migration.md#freqai-new-data-pipeline).
 
 ## Outlier detection
 
@@ -391,3 +391,18 @@ Given a number of data points $N$, and a distance $\varepsilon$, DBSCAN clusters
 ![dbscan](assets/freqai_dbscan.jpg)
 
 FreqAI uses `sklearn.cluster.DBSCAN` (details are available on scikit-learn's webpage [here](https://scikit-learn.org/stable/modules/generated/sklearn.cluster.DBSCAN.html) (external website)) with `min_samples` ($N$) taken as 1/4 of the no. of time points (candles) in the feature set. `eps` ($\varepsilon$) is computed automatically as the elbow point in the *k-distance graph* computed from the nearest neighbors in the pairwise distances of all data points in the feature set.
+
+
+### Data dimensionality reduction with Principal Component Analysis
+
+You can reduce the dimensionality of your features by activating the principal_component_analysis in the config:
+
+```json
+    "freqai": {
+        "feature_parameters" : {
+            "principal_component_analysis": true
+        }
+    }
+```
+
+This will perform PCA on the features and reduce their dimensionality so that the explained variance of the data set is >= 0.999. Reducing data dimensionality makes training the model faster and hence allows for more up-to-date models.

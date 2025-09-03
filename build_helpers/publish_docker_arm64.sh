@@ -1,11 +1,6 @@
 #!/bin/sh
 
 # Use BuildKit, otherwise building on ARM fails
-export DOCKER_BUILDKIT=1
-
-IMAGE_NAME=freqtradeorg/freqtrade
-CACHE_IMAGE=freqtradeorg/freqtrade_cache
-GHCR_IMAGE_NAME=ghcr.io/freqtrade/freqtrade
 
 # Replace / with _ to create a valid tag
 TAG=$(echo "${BRANCH_NAME}" | sed -e "s/\//_/g")
@@ -54,7 +49,7 @@ docker tag freqtrade:$TAG_FREQAI_ARM ${CACHE_IMAGE}:$TAG_FREQAI_ARM
 docker tag freqtrade:$TAG_FREQAI_RL_ARM ${CACHE_IMAGE}:$TAG_FREQAI_RL_ARM
 
 # Run backtest
-docker run --rm -v $(pwd)/config_examples/config_bittrex.example.json:/freqtrade/config.json:ro -v $(pwd)/tests:/tests freqtrade:${TAG_ARM} backtesting --datadir /tests/testdata --strategy-path /tests/strategy/strats/ --strategy StrategyTestV3
+docker run --rm -v $(pwd)/tests/testdata/config.tests.json:/freqtrade/config.json:ro -v $(pwd)/tests:/tests freqtrade:${TAG_ARM} backtesting --datadir /tests/testdata --strategy-path /tests/strategy/strats/ --strategy StrategyTestV3
 
 if [ $? -ne 0 ]; then
     echo "failed running backtest"

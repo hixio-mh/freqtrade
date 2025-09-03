@@ -5,9 +5,11 @@ class State(Enum):
     """
     Bot application states
     """
+
     RUNNING = 1
-    STOPPED = 2
-    RELOAD_CONFIG = 3
+    PAUSED = 2
+    STOPPED = 3
+    RELOAD_CONFIG = 4
 
     def __str__(self):
         return f"{self.name.lower()}"
